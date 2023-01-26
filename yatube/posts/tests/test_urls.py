@@ -104,12 +104,6 @@ class StaticURLTests(TestCase):
         response = self.client.get('/unexisting/')
         self.assertTemplateUsed(response, 'core/404.html')
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-    
-    def test_403(self):
-        """Тесты несуществующей страницы"""
-        response = self.client.get('/unexisting/')
-        self.assertTemplateUsed(response, 'core/404.html')
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_reverse(self):
         for name, arg, adress in self.responses:
