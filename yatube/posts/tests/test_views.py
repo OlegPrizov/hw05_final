@@ -6,11 +6,11 @@ from django.urls import reverse
 from django import forms
 from django.conf import settings
 from django.core.cache import cache
-
-from posts.models import Post, Group, User, Follow
 from django.conf import settings
 from posts.forms import PostForm
 from django.core.files.uploadedfile import SimpleUploadedFile
+
+from posts.models import Post, Group, User, Follow
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -161,6 +161,7 @@ class StaticURLTests(TestCase):
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField,
+            'image': forms.fields.ImageField
         }
         for name, argument in test_data:
             with self.subTest(name=name):
@@ -175,6 +176,7 @@ class StaticURLTests(TestCase):
                         self.assertIsInstance(form_field, expected)
 
     def test_index_page_contains_ten_and_three_records(self):
+        Follow.objects.create(user=self.test_user, author=self.user)
         Post.objects.filter(id=1).delete()
         bulk_list = []
         number_of_posts = 13
@@ -188,7 +190,8 @@ class StaticURLTests(TestCase):
         adresses = (
             ('posts:posts', None),
             ('posts:group_list', (self.group.slug,)),
-            ('posts:profile', (self.user.username,))
+            ('posts:profile', (self.user.username,)),
+            ('posts:follow_index', None)
         )
         pages_and_number_of_posts = (
             ('?page=1', settings.NUMBER_OF_POSTS),
@@ -198,7 +201,7 @@ class StaticURLTests(TestCase):
             with self.subTest(adress=adress):
                 for page, number in pages_and_number_of_posts:
                     with self.subTest(page=page):
-                        response = self.author.get(
+                        response = self.authorized_client.get(
                             reverse(adress, args=argument)
                             + page
                         )
@@ -220,8 +223,8 @@ class StaticURLTests(TestCase):
         post_cleared = response_3.content
         self.assertNotEqual(post_second, post_cleared)
 
-    def test_follow_and_unfollow(self):
-        """Авторизованный пользователь может регулирует подписки"""
+    def test_follow(self):
+        """Авторизованный пользователь может подписываться"""
         count_before_follow = Follow.objects.all().count()
         self.authorized_client.get(reverse(
             'posts:profile_follow',
@@ -234,6 +237,14 @@ class StaticURLTests(TestCase):
             count_after,
             'Не подписался'
         )
+        follow_data = Follow.objects.get(pk=1)
+        self.assertEqual(follow_data.author, self.user)
+        self.assertEqual(follow_data.user, self.test_user)
+
+    def test_unfollow(self):
+        """Авторизованный пользователь может отписываться"""
+        Follow.objects.create(user=self.test_user, author=self.user)
+        count_before = Follow.objects.all().count()
         self.authorized_client.get(reverse(
             'posts:profile_unfollow',
             args=[self.user.username]
@@ -241,49 +252,52 @@ class StaticURLTests(TestCase):
         )
         count_after_unfollow = Follow.objects.all().count()
         self.assertEqual(
-            count_before_follow,
+            count_before - 1,
             count_after_unfollow,
             'Не отписался'
         )
 
-    def test_index_follow(self):
+    def test_new_index_follow(self):
         """Новая запись в ленте подписчиков"""
-        # удаляем все посты, чтобы ничего не осталось
-        Post.objects.all().delete()
-        # проверяем, реально ли посты удалились
-        self.assertEqual(Post.objects.all().count(), 0)
-        # авторизованный пользователь подписался на автора
+        response_1 = self.authorized_client.get(reverse('posts:follow_index'))
+        self.assertEqual(
+            len(response_1.context.get('page_obj')),
+            0,
+            'Не получилось'
+        )
+        Follow.objects.create(user=self.test_user, author=self.user)
+        response_2 = self.authorized_client.get(reverse('posts:follow_index'))
+        self.assertEqual(
+            len(response_2.context.get('page_obj')),
+            1,
+            'Не получилось'
+        )
+
+    def test_follow_myself(self):
+        """При подписке на себя количество подписок не меняется"""
+        count_before = Follow.objects.all().count()
+        self.author.get(reverse(
+            'posts:profile_unfollow',
+            args=[self.user.username]
+        )
+        )
+        count_after = Follow.objects.all().count()
+        self.assertEqual(count_before, count_after)
+
+    def test_follow_2_times(self):
+        """тест повторной подписки - кол-во равно 1"""
+        count_before = Follow.objects.all().count()
         self.authorized_client.get(reverse(
             'posts:profile_follow',
             args=[self.user.username]
         )
         )
-        new_response = self.authorized_client.get(reverse(
-            'posts:profile',
-            args=[self.user.username]
-        )
-        )
-        # проверяю, есть ли подписка
-        self.assertTrue(new_response.context.get('following'))
-        test_data = {
-            'text': 'this is text',
-            'group': self.group.pk,
-        }
-        # автор сделал новый пост
-        self.author.post(reverse('posts:post_create'), test_data)
-        # делаем запрос авторизованного пользователя на свои подписки
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertEqual(
-            response.context.get('page_obj')[0].text, 'this is text')
-        # посчитал, сколько постов в избранных
-        count_before = len(response.context.get('page_obj'))
-        # отписался
+        count_after = Follow.objects.all().count()
+        self.assertEqual(count_before + 1, count_after)
         self.authorized_client.get(reverse(
-            'posts:profile_unfollow',
+            'posts:profile_follow',
             args=[self.user.username]
         )
         )
-        # снова посчитал, сколько постов в избранных
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        count_after = len(response.context.get('page_obj'))
-        self.assertEqual(count_before, count_after + 1, 'Неверно')
+        count_after_2_follow = Follow.objects.all().count()
+        self.assertEqual(count_after, count_after_2_follow)

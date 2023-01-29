@@ -72,6 +72,13 @@ class Follow(models.Model):
         verbose_name='автор'
     )
 
+    class Meta:
+        verbose_name = 'подписка'
+        verbose_name_plural = 'подписки'
+
+    def __str__(self):
+        return f'Пользователь {self.user} подписался на {self.author}'
+
 
 class Comment(models.Model):
     post = models.ForeignKey(
@@ -93,3 +100,10 @@ class Comment(models.Model):
         'дата публикации',
         auto_now_add=True,
     )
+
+    class Meta:
+        verbose_name = 'комментарий'
+        verbose_name_plural = 'комментарии'
+
+    def __str__(self):
+        return self.text[:settings.NUMBER_OF_SYMBOLS]

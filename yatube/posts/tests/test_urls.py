@@ -47,6 +47,22 @@ class StaticURLTests(TestCase):
                 'posts:post_edit',
                 (cls.post.pk,),
                 f'/posts/{cls.post.pk}/edit/'
+            ), (
+                'posts:follow_index',
+                None,
+                '/follow/'
+            ), (
+                'posts:profile_follow',
+                (cls.user.username,),
+                f'/profile/{cls.user.username}/follow/'
+            ), (
+                'posts:profile_unfollow',
+                (cls.user.username,),
+                f'/profile/{cls.user.username}/unfollow/'
+            ), (
+                'posts:add_comment',
+                (cls.post.pk,),
+                f'/posts/{cls.post.pk}/comment/'
             )
         )
 
@@ -59,7 +75,14 @@ class StaticURLTests(TestCase):
 
     def test_pages_for_all(self):
         """Страницы доступны всем пользователям"""
-        names = ('posts:post_create', 'posts:post_edit')
+        names = (
+            'posts:post_create',
+            'posts:post_edit',
+            'posts:follow_index',
+            'posts:profile_follow',
+            'posts:profile_unfollow',
+            'posts:add_comment'
+        )
         for name, arg, _ in self.responses:
             with self.subTest(name=name):
                 response = self.client.get(reverse(name, args=arg))
@@ -86,6 +109,21 @@ class StaticURLTests(TestCase):
                             args=[self.post.pk]
                         )
                     )
+                elif name == 'posts:profile_follow':
+                    self.assertRedirects(
+                        response,
+                        reverse('posts:profile', args=[self.user.username])
+                    )
+                elif name == 'posts:profile_unfollow':
+                    self.assertRedirects(
+                        response,
+                        reverse('posts:profile', args=[self.user.username])
+                    )
+                elif name == 'posts:add_comment':
+                    self.assertRedirects(
+                        response,
+                        reverse('posts:post_detail', args=[self.post.pk])
+                    )
                 else:
                     self.assertEqual(
                         response.status_code,
@@ -97,7 +135,26 @@ class StaticURLTests(TestCase):
         for name, arg, _ in self.responses:
             with self.subTest(name=name):
                 response = self.author.get(reverse(name, args=arg))
-                self.assertEqual(response.status_code, HTTPStatus.OK)
+                if name == 'posts:profile_follow':
+                    self.assertRedirects(
+                        response,
+                        reverse('posts:profile', args=[self.user.username])
+                    )
+                elif name == 'posts:profile_unfollow':
+                    self.assertEqual(
+                        response.status_code,
+                        HTTPStatus.NOT_FOUND
+                    )
+                elif name == 'posts:add_comment':
+                    self.assertRedirects(
+                        response,
+                        reverse('posts:post_detail', args=[self.post.pk])
+                    )
+                else:
+                    self.assertEqual(
+                        response.status_code,
+                        HTTPStatus.OK
+                    )
 
     def test_404(self):
         """Тесты несуществующей страницы"""
@@ -137,7 +194,11 @@ class StaticURLTests(TestCase):
                 'posts:post_edit',
                 (self.post.pk,),
                 'posts/create_post.html'
-            ),
+            ), (
+                'posts:follow_index',
+                None,
+                'posts/follow.html'
+            )
         )
         for name, arg, template in test_data:
             with self.subTest(name=name):

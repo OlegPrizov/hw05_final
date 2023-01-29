@@ -3,13 +3,14 @@
 {% block content %}
   <div class="container py-5">
     <div class="mb-5">
+      {% if request.user.id != author.id and user.is_authenticated %}
       {% if following %}
-      <a
-        class="btn btn-lg btn-light"
-        href="{% url 'posts:profile_unfollow' author.username %}" role="button"
-      >
-        Отписаться
-      </a>
+        <a
+          class="btn btn-lg btn-light"
+          href="{% url 'posts:profile_unfollow' author.username %}" role="button"
+        >
+          Отписаться
+        </a>
       {% else %}
         <a
           class="btn btn-lg btn-primary"
@@ -18,9 +19,12 @@
           Подписаться
         </a>
       {% endif %}
+      {% endif %}
   </div>
     <h1>Все посты пользователя {{ author }} </h1>
     <h3>Всего постов: {{ author.posts.count }} </h3>   
+    <h3>Подписки: {{ author.follower.count }} </h3>  
+    <h3>Подписчики: {{ author.following.count }} </h3>  
     {% for post in page_obj %}
       {% include 'posts/includes/post_card.html' with profile=True %}
         {% if not forloop.last %}

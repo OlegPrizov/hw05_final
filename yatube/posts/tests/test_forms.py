@@ -1,13 +1,11 @@
 import shutil
 import tempfile
-
 from http import HTTPStatus
-from django.conf import settings
 
+from django.conf import settings
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
-
 from django.core.cache import cache
 
 from posts.models import Post, Group, User, Comment
@@ -154,18 +152,16 @@ class StaticURLTests(TestCase):
                 args=[self.post.pk]
             ), data=form_data
         )
-        self.client.post(
-            reverse(
-                'posts:add_comment',
-                args=[self.post.pk]
-            ), data=form_data
-        )
         self.assertEqual(Comment.objects.count(), comments_count + 1)
         self.assertTrue(
             Comment.objects.filter(
                 text='Комментарий о том, что я ненавижу тесты',
             ).exists()
         )
+        comment = Comment.objects.get(pk=1)
+        self.assertEqual(comment.author, self.test_user)
+        self.assertEqual(comment.text, form_data['text'])
+        self.assertEqual(comment.post, self.post)
         response_authorized = self.authorized_client.get(reverse(
             'posts:post_detail',
             args=[self.post.pk]
@@ -174,3 +170,18 @@ class StaticURLTests(TestCase):
             response_authorized.context['comments'],
             form_data['text']
         )
+
+    def test_client_has_no_access_to_comments(self):
+        """Анонимный пользователь не может комментировать посты"""
+        count_before = Comment.objects.count()
+        form_data = {
+            'text': 'Комментарий о том, что я ненавижу тесты'
+        }
+        self.client.post(
+            reverse(
+                'posts:add_comment',
+                args=[self.post.pk]
+            ), data=form_data
+        )
+        count_after = Comment.objects.count()
+        self.assertEqual(count_before, count_after)
