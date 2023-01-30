@@ -7,10 +7,10 @@ from django import forms
 from django.conf import settings
 from django.core.cache import cache
 from django.conf import settings
-from posts.forms import PostForm
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from posts.models import Post, Group, User, Follow
+from posts.forms import PostForm
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -277,7 +277,7 @@ class StaticURLTests(TestCase):
         """При подписке на себя количество подписок не меняется"""
         count_before = Follow.objects.all().count()
         self.author.get(reverse(
-            'posts:profile_unfollow',
+            'posts:profile_follow',
             args=[self.user.username]
         )
         )

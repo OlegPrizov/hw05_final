@@ -42,7 +42,11 @@ def profile(request, username):
 def post_detail(request, post_id):
     form = CommentForm(request.POST or None)
     post = get_object_or_404(
-        Post.objects.prefetch_related('comments__author'),
+        Post.objects.select_related(
+            'author'
+        ).all().prefetch_related(
+            'comments__author'
+        ),
         id=post_id
     )
     context = {

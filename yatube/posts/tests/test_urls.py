@@ -1,7 +1,8 @@
+from http import HTTPStatus
+
 from django.urls import reverse
 from django.test import TestCase, Client
 from django.conf import settings
-from http import HTTPStatus
 from django.core.cache import cache
 
 from posts.models import Post, Group, User
@@ -101,7 +102,10 @@ class StaticURLTests(TestCase):
         for name, arg, _ in self.responses:
             with self.subTest(name=name):
                 response = self.authorized_client.get(reverse(name, args=arg))
-                if name == 'posts:post_edit':
+                if (
+                    name == 'posts:post_edit'
+                    or name == 'posts:add_comment'
+                ):
                     self.assertRedirects(
                         response,
                         reverse(
@@ -109,20 +113,13 @@ class StaticURLTests(TestCase):
                             args=[self.post.pk]
                         )
                     )
-                elif name == 'posts:profile_follow':
+                elif (
+                    name == 'posts:profile_follow'
+                    or name == 'posts:profile_unfollow'
+                ):
                     self.assertRedirects(
                         response,
                         reverse('posts:profile', args=[self.user.username])
-                    )
-                elif name == 'posts:profile_unfollow':
-                    self.assertRedirects(
-                        response,
-                        reverse('posts:profile', args=[self.user.username])
-                    )
-                elif name == 'posts:add_comment':
-                    self.assertRedirects(
-                        response,
-                        reverse('posts:post_detail', args=[self.post.pk])
                     )
                 else:
                     self.assertEqual(

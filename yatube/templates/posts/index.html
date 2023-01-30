@@ -5,7 +5,7 @@
   <div class="container py-5">
     <h1> Все посты </h1>
     {% include 'posts/includes/switcher.html' with index=True %}
-    {% cache 20 index_page %}
+    {% cache 20 sidebar index page_obj.number %}
       {% for post in page_obj %}
         {% include 'posts/includes/post_card.html' %}
         {% if not forloop.last %}
