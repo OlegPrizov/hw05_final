@@ -42,6 +42,7 @@ python3 manage.py migrate
 
 Запустить проект:
 ```
+cd yatube
 python3 manage.py runserver
 ```
 
